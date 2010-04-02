@@ -1,1 +1,6 @@
 Database dumper class.
+
+
+TODO: input for ignored tables
+TODO: translate comments
+TODO: add documentation for functions

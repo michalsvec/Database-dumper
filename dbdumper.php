@@ -2,7 +2,7 @@
 
 /**********************************************************
  *
- *	database dumper 
+ *	Database dumper 
  *
  *	author:     Michal Svec, pan.svec@gmail.com
  *	website:	http://misa.ufb.cz
@@ -25,9 +25,9 @@
 
 error_reporting(E_ALL ^ E_NOTICE);
 
-define('COUNT', 1000);		//pocet radku vybranych jednim exportem
+define('COUNT', 1000);		// rows selected in one select
 define('DEBUG', 3);	
-define('MAXFILESIZE', 8000000);	// maximalni velikost jednoho exportovaneho souboru
+define('MAXFILESIZE', 8000000);	// maximum size of export file
 
 
 function pr($data) {
@@ -50,10 +50,11 @@ class awesomeDumper3000 {
 		$filename,	// output file name
 		$from,		// offset
 		$table,		// actual table
-		$ignoredTables = array(),
+		$ignoredTables = array(),	// don't export these tables
 		$droptable,	// drop table command
 		$interval,	// refresh interval
 		$encoding;	//connection encoding
+
 
 	function __construct() {
 		$this->table = mysql_escape_string($_GET['table']);
@@ -66,25 +67,30 @@ class awesomeDumper3000 {
 		debug("<b>table:<b> ".$this->table." from ".$this->from, 0);
 	}
 
-
+	/**
+	 *	gets header of table
+	 *	param:	string	table name
+	 */
 	function getCreateTable($table) {
 		debug("function: getCreateTable(".$table.")",2);
 
 		if($this->droptable == 1)
 			$out = "DROP TABLE $table;";
 
-
 		$sql = 'SHOW CREATE TABLE '.$table;
 
 		$export = mysql_query($sql);
 		$table = mysql_fetch_array($export);
 
-
 		return "\n\n\n".$out."\n".$table[1].";\n\n";
 	}
 	
 	
-	
+	/**
+	 *	gets column list for selected table
+	 *
+	 *	param:	string	table name
+	 */	
 	function getColumns($tablename) {
 		debug("<b>function<b>: getColumns(".$tablename.")",2);
 
@@ -100,10 +106,16 @@ class awesomeDumper3000 {
 		return $columns;
 	}
 	
+	
+	/**
+	 *	Simple output function
+	 *
+	 *	param:	string	data to append
+	 */
 	function outputFileAppend($data) {
 		debug("function: outputFileAppend()",2);
 
-		// skok na dalsi soubor, pokud aktualni po pridani presahne velikost
+		// if actual file is larger than MAXFILESIZE, jump to next file
 		if((file_exists($this->filename) ? filesize($this->filename) : 0) + strlen($data) > MAXFILESIZE) {
 			preg_match("/([^\.]*)\.?([0-9]*)\.([^\.]+)/i", $this->filename, $matches);
 			
@@ -203,7 +215,7 @@ class awesomeDumper3000 {
 			debug("exporttable: returned false",2);
 
 		if(!$end) {
-			// pokracujeme na dalsi tabulku
+			// ok, we're heading to next table
 			foreach($tables as $k=>$v) {
 				if($v == $this->table) {
 					$i=1;
