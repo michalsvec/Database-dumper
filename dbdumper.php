@@ -63,7 +63,8 @@ class awesomeDumper3000 {
 		$this->droptable = ($_GET['droptable']==1 ? 1 : 0);
 		$this->encoding = (!empty($_GET['encoding']) ? $_GET['encoding'] : "utf8");
 		$this->interval = (!empty($_GET['interval']) ? (int) $_GET['interval'] : 1);
-		
+		$this->ignoredTables = (empty($_GET['ignored']) ? array(): $_GET['ignored']);
+
 		debug("<b>table:<b> ".$this->table." from ".$this->from, 0);
 	}
 
@@ -73,6 +74,9 @@ class awesomeDumper3000 {
 	 */
 	function getCreateTable($table) {
 		debug("function: getCreateTable(".$table.")",2);
+
+		if(empty($table))
+			return "";
 
 		if($this->droptable == 1)
 			$out = "DROP TABLE $table;";
@@ -138,6 +142,8 @@ class awesomeDumper3000 {
 			
 		$count = (isset($_GET['count']) ? (int) $_GET['count'] : COUNT);
 		
+		if(empty($table))
+			return "";
 		
 		$sql = 'SELECT COUNT(*) FROM '.$table;
 		$query = mysql_query($sql);
@@ -255,29 +261,30 @@ class awesomeDumper3000 {
 	function run() {
 		debug("function: run()",2);
 
-		// pro pripad, ze chci stopnout provadeni
-		if(isset($_GET['stop'])) {
-			echo '<a class="control" href="?run">Start</a><br />';	
-		}
-		// pouze pauza.budeme pokracovat na stejne tabulce a pocatecnim radku jako predtim
-		else if(isset($_GET['pause'])) {
-			echo '<a class="control" href="?table='.$this->table.'&from='.($this->from).'&filename='.$this->filename.'&run">Resume</a><br />';
+		$dbinfo = parse_ini_file(dirname(__FILE__).'/dbdumper.ini');
 		
+		$db = mysql_connect($dbinfo['dbhost'],$dbinfo['dbuser'],$dbinfo['dbpass']);
+		if (!$db) {
+			echo '<span class="err">Could not connect: '.mysql_error().'</span>';
+			return;
 		}
-		// prubeh exportu
-		else if(isset($_GET['run'])) {
-			$dbinfo = parse_ini_file(dirname(__FILE__).'/dbdumper.ini');
+		if(!mysql_select_db($dbinfo['dbname']))  {
+			echo '<span class="err">Could not select database: '.mysql_error().'</span>';
+			return;
+		}
+		else {
+
+			// exporting stop
+			if(isset($_GET['stop'])) {
+				echo '<a class="control" href="?run">Start</a><br />';	
+			}
+			// pause in export - we will start on same table and row
+			else if(isset($_GET['pause'])) {
+				echo '<a class="control" href="?table='.$this->table.'&from='.($this->from).'&filename='.$this->filename.'&run">Resume</a><br />';
 			
-			$db = mysql_connect($dbinfo['dbhost'],$dbinfo['dbuser'],$dbinfo['dbpass']);
-			if (!$db) {
-				echo '<span class="err">Could not connect: '.mysql_error().'</span>';
-				return;
 			}
-			if(!mysql_select_db($dbinfo['dbname']))  {
-				echo '<span class="err">Could not select database: '.mysql_error().'</span>';
-				return;
-			}
-			else {
+			// export is running
+			else if(isset($_GET['run'])) {
 				@mysql_query("SET CHARACTER SET utf8",$db);
 				@mysql_query("SET NAMES UTF8",$db);
 				@mysql_query("SET character_set_results=utf8",$db);
@@ -287,26 +294,38 @@ class awesomeDumper3000 {
 				if($this->dumpDatabase()) {
 					echo '<a class="control" href="?stop">Stop</a><br />';
 					echo '<a class="control" href="?pause">Pause</a><br />';
-					echo '<meta HTTP-EQUIV="REFRESH" content="1; url=?table='.$this->table.'&filename='.$this->filename.'&from='.($this->from).'&droptable='.$this->droptable.'&encoding='.$this->encoding.'&interval='.$this->interval.'&run">';
+					
+					$itString = array();
+					foreach($this->ignoredTables as $it) {
+						$itString[] = "ignored[]=".$ignored;
+					}
+
+					echo '<meta HTTP-EQUIV="REFRESH" content="1; url=?table='.$this->table.'&filename='.$this->filename.'&from='.($this->from).'&droptable='.$this->droptable.'&encoding='.$this->encoding.'&interval='.$this->interval.'&'.join("&", $itString).'&run">';
 				}
-				// konec exportu
-				else {
+				// the end
+			else {
 					echo '<h2>End of backup!</h2><a class="control" href="?run">Restart</a><br />';
 					echo '<a class="control" href="'.$_SERVER['SCRIPT_NAME'].'">New backup</a>';
 				}
 			}
-		}
-		// start exportu
-		else {
+			// export start
+			else {
 ?>
-			<form action="" method="get">
-				<input type="checkbox" name="droptable" value="1" /> Add DROP TABLE?<br />
-				Refresh interval: <input type="text" name="interval" value="1" size="2" /> seconds<br />
-				Database encoding: <input type="text" name="encoding" value="utf8" size="8" /><br />
-				<input type="hidden" name="run" value="1" /><br /><br />
-				<button class="control" type="submit">Run</button><br />
-			</form>
+				<form action="" method="get">
+					<input type="checkbox" name="droptable" value="1" /> Add DROP TABLE?<br />
+					Refresh interval: <input type="text" name="interval" value="1" size="2" /> seconds<br />
+					Database encoding: <input type="text" name="encoding" value="utf8" size="8" /><br />
+					Ignore these tables:<br />
 <?php
+					foreach($this->getTableList() as $table)
+						echo '&nbsp;&nbsp;&nbsp;&nbsp;<input type="checkbox" name="ignored[]" value="'.$table.'">'.$table."<br />\n";
+?>
+					
+					<input type="hidden" name="run" value="1" /><br /><br />
+					<button class="control" type="submit">Run</button><br />
+				</form>
+<?php
+			}
 		}
 	}
 }
@@ -333,7 +352,6 @@ class awesomeDumper3000 {
 	<div id="main" style=" padding: 20px; color: #111;">
 <?php
 		$dumper = new awesomeDumper3000	();
-		$dumper -> setIgnoreTable(array(''));
 		$dumper->run($dbinfo);
 ?>		
 	</div>
