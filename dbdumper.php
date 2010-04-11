@@ -25,7 +25,7 @@
 
 error_reporting(E_ALL ^ E_NOTICE);
 
-define('COUNT', 1000);		// rows selected in one select
+define('COUNT', 3000);		// rows selected in one select
 define('DEBUG', 3);	
 define('MAXFILESIZE', 8000000);	// maximum size of export file
 
@@ -53,7 +53,9 @@ class awesomeDumper3000 {
 		$ignoredTables = array(),	// don't export these tables
 		$droptable,	// drop table command
 		$interval,	// refresh interval
-		$encoding;	//connection encoding
+		$encoding,	//connection encoding
+		$maxFileSize,	// maximum size of *.sql file
+		$rowCount;		// number of rows in one SQL select per iteration
 
 
 	function __construct() {
@@ -64,6 +66,8 @@ class awesomeDumper3000 {
 		$this->encoding = (!empty($_GET['encoding']) ? $_GET['encoding'] : "utf8");
 		$this->interval = (!empty($_GET['interval']) ? (int) $_GET['interval'] : 1);
 		$this->ignoredTables = (empty($_GET['ignored']) ? array(): $_GET['ignored']);
+		$this->rowCount = (empty($_GET['count']) ? COUNT : $_GET['count']);
+		$this->maxFileSize = (empty($_GET['maxfilesize']) ? MAXFILESIZE : $_GET['maxfilesize']);
 
 		debug("<b>table:<b> ".$this->table." from ".$this->from, 0);
 	}
@@ -120,7 +124,7 @@ class awesomeDumper3000 {
 		debug("function: outputFileAppend()",2);
 
 		// if actual file is larger than MAXFILESIZE, jump to next file
-		if((file_exists($this->filename) ? filesize($this->filename) : 0) + strlen($data) > MAXFILESIZE) {
+		if((file_exists($this->filename) ? filesize($this->filename) : 0) + strlen($data) > $this->maxFileSize) {
 			preg_match("/([^\.]*)\.?([0-9]*)\.([^\.]+)/i", $this->filename, $matches);
 			
 			if($matches[2] != "")
@@ -140,8 +144,6 @@ class awesomeDumper3000 {
 	function exportTable($table, $from) {
 		debug("function: exportTable(".$table.", ".$from.")",2);
 			
-		$count = (isset($_GET['count']) ? (int) $_GET['count'] : COUNT);
-		
 		if(empty($table))
 			return "";
 		
@@ -151,7 +153,7 @@ class awesomeDumper3000 {
 		
 		debug("<b>total rows:</b> ".$rows[0]);
 
-		$sql = 'SELECT * FROM '.$table.' LIMIT '.$from.', '.$count;
+		$sql = 'SELECT * FROM '.$table.' LIMIT '.$from.', '.$this->rowCount;
 		$query = mysql_query($sql);
 
 		$out = "";
@@ -248,7 +250,7 @@ class awesomeDumper3000 {
 			
 		}
 		else {
-			$this->from = ($this->from+COUNT);
+			$this->from = ($this->from+$this->rowCount);
 			return true;
 		}
 	}
@@ -295,12 +297,12 @@ class awesomeDumper3000 {
 					echo '<a class="control" href="?stop">Stop</a><br />';
 					echo '<a class="control" href="?pause">Pause</a><br />';
 					
-					$itString = array();
+					$ITString = array();	// ignored tables url string
 					foreach($this->ignoredTables as $it) {
-						$itString[] = "ignored[]=".$ignored;
+						$ITString[] = "ignored[]=".$it;
 					}
 
-					echo '<meta HTTP-EQUIV="REFRESH" content="1; url=?table='.$this->table.'&filename='.$this->filename.'&from='.($this->from).'&droptable='.$this->droptable.'&encoding='.$this->encoding.'&interval='.$this->interval.'&'.join("&", $itString).'&run">';
+					echo '<meta HTTP-EQUIV="REFRESH" content="1; url=?table='.$this->table.'&filename='.$this->filename.'&from='.($this->from).'&droptable='.$this->droptable.'&encoding='.$this->encoding.'&interval='.$this->interval.'&'.join("&", $ITString).'&run">';
 				}
 				// the end
 			else {
@@ -312,9 +314,15 @@ class awesomeDumper3000 {
 			else {
 ?>
 				<form action="" method="get">
-					<input type="checkbox" name="droptable" value="1" /> Add DROP TABLE?<br />
-					Refresh interval: <input type="text" name="interval" value="1" size="2" /> seconds<br />
+					<input type="checkbox" name="droptable" value="1" /> Add DROP TABLE command?<br />
+					Refresh interval: <input type="text" name="interval" value="2" size="2" /> seconds<br />
 					Database encoding: <input type="text" name="encoding" value="utf8" size="8" /><br />
+					<span class="hint">used for SET CHARACTER SET, NAMES, character_set_results,character_set_connection and character_set_client </span><br />
+					Rows in one select: <input type="text" name="count" value="<?php echo COUNT ?>" size="8" />
+					<br /><span class="hint">used in LIMIT command </span>
+					<br />
+					Maximum size of exported file: <input type="text" name="maxfilesize" value="<?php echo MAXFILESIZE ?>" size="8" />bytes<br />
+					<span class="hint">if this limit is exceed, the script will create new file with his sequence number</span><br /><br />
 					Ignore these tables:<br />
 <?php
 					foreach($this->getTableList() as $table)
@@ -329,7 +337,6 @@ class awesomeDumper3000 {
 		}
 	}
 }
-
 ?>
 
 <html>
@@ -338,6 +345,7 @@ class awesomeDumper3000 {
 	
 	<style>
 		.control { font-size: 20px; font-weight: bold; color: #f00000; text-decoration: none; }
+		.hint { font-size: 10px; }
 	</style>
 	
 </head>
@@ -346,7 +354,7 @@ class awesomeDumper3000 {
 <div id="wrap" style="margin:auto; width: 600px; border: 1px solid #eee; background: #fff; margin-top: 30px;">
 
 	<div id="header" style="width: 100%; height: 50px;text-align: center; border-bottom: 1px solid #444; ">
-		<h1 style="color: #f00000">Database dumper 0.8</h1>	
+		<h1 style="color: #f00000">Database dumper 1.0</h1>	
 	</div>
 	
 	<div id="main" style=" padding: 20px; color: #111;">
