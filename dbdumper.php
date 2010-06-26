@@ -26,10 +26,14 @@
 error_reporting(E_ALL ^ E_NOTICE);
 
 define('COUNT', 3000);		// rows selected in one select
-define('DEBUG', 3);	
+define('DEBUG', 3);			// debuging level
 define('MAXFILESIZE', 8000000);	// maximum size of export file
 
-
+/**
+ *	Simple printing function
+ *
+ *	@param string 
+ */
 function pr($data) {
 	echo "<pre>";
 	print_r($data);
@@ -37,7 +41,12 @@ function pr($data) {
 }
 
 
-// debug function - just echoing strings to page
+/**
+ *	debug function - just prints string to page
+ *
+ *	@param	string	string to print
+ *	@param	int		level of debug
+ */
 function debug($string, $lvl = 0) {
 	if($lvl > DEBUG)
 		echo $string."<br />";
@@ -47,17 +56,20 @@ function debug($string, $lvl = 0) {
 class awesomeDumper3000 {
 
 	var
-		$filename,	// output file name
-		$from,		// offset
-		$table,		// actual table
+		$filename,		// output file name
+		$from,			// offset
+		$table,			// actual table
 		$ignoredTables = array(),	// don't export these tables
-		$droptable,	// drop table command
-		$interval,	// refresh interval
-		$encoding,	//connection encoding
+		$droptable,		// drop table command
+		$interval,		// refresh interval
+		$encoding,		//connection encoding
 		$maxFileSize,	// maximum size of *.sql file
 		$rowCount;		// number of rows in one SQL select per iteration
 
 
+	/**
+	 *	Set according to parameters or default values
+	 */
 	function __construct() {
 		$this->table = mysql_escape_string($_GET['table']);
 		$this->from = (int) (!empty($_GET['from']) ? $_GET['from'] : 0);
@@ -287,11 +299,11 @@ class awesomeDumper3000 {
 			}
 			// export is running
 			else if(isset($_GET['run'])) {
-				@mysql_query("SET CHARACTER SET utf8",$db);
-				@mysql_query("SET NAMES UTF8",$db);
-				@mysql_query("SET character_set_results=utf8",$db);
-				@mysql_query("SET character_set_connection=utf8",$db);
-				@mysql_query("SET character_set_client=utf8",$db); 	
+				@mysql_query("SET CHARACTER SET ".$this->encoding,$db);
+				@mysql_query("SET NAMES ".$this->encoding,$db);
+				@mysql_query("SET character_set_results=".$this->encoding,$db);
+				@mysql_query("SET character_set_connection=".$this->encoding,$db);
+				@mysql_query("SET character_set_client=".$this->encoding,$db); 	
 			
 				if($this->dumpDatabase()) {
 					echo '<a class="control" href="?stop">Stop</a><br />';
@@ -344,13 +356,14 @@ class awesomeDumper3000 {
 	<title>Database dumper</title>
 	
 	<style>
+		body { background: #444; color: #eee; }
 		.control { font-size: 20px; font-weight: bold; color: #f00000; text-decoration: none; }
 		.hint { font-size: 10px; }
 	</style>
 	
 </head>
 
-<body style="background: #444; color: #eee;">
+<body style="">
 <div id="wrap" style="margin:auto; width: 600px; border: 1px solid #eee; background: #fff; margin-top: 30px;">
 
 	<div id="header" style="width: 100%; height: 50px;text-align: center; border-bottom: 1px solid #444; ">
