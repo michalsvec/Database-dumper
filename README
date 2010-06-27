@@ -2,7 +2,3 @@ Database dumper class.
 
 
 successfully tested on 300MB phpBB database
-
-TODO: input for ignored tables
-TODO: translate comments
-TODO: add documentation for functions

@@ -26,7 +26,6 @@
 error_reporting(E_ALL ^ E_NOTICE);
 
 define('COUNT', 3000);		// rows selected in one select
-define('DEBUG', 3);			// debuging level
 define('MAXFILESIZE', 8000000);	// maximum size of export file
 
 /**
@@ -41,16 +40,6 @@ function pr($data) {
 }
 
 
-/**
- *	debug function - just prints string to page
- *
- *	@param	string	string to print
- *	@param	int		level of debug
- */
-function debug($string, $lvl = 0) {
-	if($lvl > DEBUG)
-		echo $string."<br />";
-}
 
 
 class awesomeDumper3000 {
@@ -81,15 +70,13 @@ class awesomeDumper3000 {
 		$this->rowCount = (empty($_GET['count']) ? COUNT : $_GET['count']);
 		$this->maxFileSize = (empty($_GET['maxfilesize']) ? MAXFILESIZE : $_GET['maxfilesize']);
 
-		debug("<b>table:<b> ".$this->table." from ".$this->from, 0);
 	}
 
 	/**
 	 *	gets header of table
-	 *	param:	string	table name
+	 *	@param	string	table name
 	 */
 	function getCreateTable($table) {
-		debug("function: getCreateTable(".$table.")",2);
 
 		if(empty($table))
 			return "";
@@ -109,10 +96,9 @@ class awesomeDumper3000 {
 	/**
 	 *	gets column list for selected table
 	 *
-	 *	param:	string	table name
+	 *	@param	string	table name
 	 */	
 	function getColumns($tablename) {
-		debug("<b>function<b>: getColumns(".$tablename.")",2);
 
 		$sql = 'SHOW COLUMNS FROM '.$tablename;
 
@@ -130,10 +116,9 @@ class awesomeDumper3000 {
 	/**
 	 *	Simple output function
 	 *
-	 *	param:	string	data to append
+	 *	@param	string	data to append
 	 */
 	function outputFileAppend($data) {
-		debug("function: outputFileAppend()",2);
 
 		// if actual file is larger than MAXFILESIZE, jump to next file
 		if((file_exists($this->filename) ? filesize($this->filename) : 0) + strlen($data) > $this->maxFileSize) {
@@ -147,14 +132,18 @@ class awesomeDumper3000 {
 			$this->filename = $matches[1].".".$matches[2].".".$matches[3];
 		} 
 		
-		debug("output file: ".$this->filename,2);
 		
 		file_put_contents($this->filename, $data, FILE_APPEND);
 	}
 	
 	
+	/**
+	 *	Exports rows from table
+	 *
+	 *	@param	string	table name
+	 *	@param	int		starting row
+	 */
 	function exportTable($table, $from) {
-		debug("function: exportTable(".$table.", ".$from.")",2);
 			
 		if(empty($table))
 			return "";
@@ -163,7 +152,6 @@ class awesomeDumper3000 {
 		$query = mysql_query($sql);
 		$rows = mysql_fetch_row($query);
 		
-		debug("<b>total rows:</b> ".$rows[0]);
 
 		$sql = 'SELECT * FROM '.$table.' LIMIT '.$from.', '.$this->rowCount;
 		$query = mysql_query($sql);
@@ -183,20 +171,19 @@ class awesomeDumper3000 {
 			$row_count++;
 		}
 
-		debug("<b>exporting</b>: ".$row_count." rows from <b>$from</b>",1);
-
 		$this->outputFileAppend($out);
-		
-		debug("function exportTable returns: ".(($from+$count > $rows[0]) ? "false" : "true"),2);
-		
+				
 		if($from+$count > $rows[0])
 			return false;
 		else
 			return true;
 	}
-	
+
+
+	/**
+	 *	Returns array od table names
+	 */
 	function getTableList() {
-		debug("function: getTableList()",2);
 
 		$sql = 'SHOW TABLES';
 		$query = mysql_query($sql);
@@ -209,8 +196,10 @@ class awesomeDumper3000 {
 	}
 	
 	
+	/**
+	 *	Database dumping method
+	 */
 	function dumpDatabase() {
-		debug("function: dumpDatabase()",2);
 		$tables = $this->getTableList();
 
 		if(empty($this->table)) {
@@ -227,12 +216,6 @@ class awesomeDumper3000 {
 		}
 		
 		$end = $this->exportTable($this->table, $this->from);
-		
-		
-		if($end)
-			debug("exporttable: returned true",2);
-		else
-			debug("exporttable: returned false",2);
 
 		if(!$end) {
 			// ok, we're heading to next table
@@ -248,12 +231,9 @@ class awesomeDumper3000 {
 						$this->outputFileAppend($this->getCreateTable($this->table));
 						
 						$this->from = 0;
-						debug("<b>next table:</b> ". $this->table,1);
 						return true;
 					}
 					else {
-						debug("<b>same table</b>",1);
-
 						$this->from = ($this->from+COUNT);
 						return false;
 					}
@@ -272,8 +252,10 @@ class awesomeDumper3000 {
 		$this->ignoredTables = $list;
 	}
 	
+	/**
+	 *	Main method
+	 */
 	function run() {
-		debug("function: run()",2);
 
 		$dbinfo = parse_ini_file(dirname(__FILE__).'/dbdumper.ini');
 		
@@ -317,7 +299,7 @@ class awesomeDumper3000 {
 					echo '<meta HTTP-EQUIV="REFRESH" content="1; url=?table='.$this->table.'&filename='.$this->filename.'&from='.($this->from).'&droptable='.$this->droptable.'&encoding='.$this->encoding.'&interval='.$this->interval.'&'.join("&", $ITString).'&run">';
 				}
 				// the end
-			else {
+				else {
 					echo '<h2>End of backup!</h2><a class="control" href="?run">Restart</a><br />';
 					echo '<a class="control" href="'.$_SERVER['SCRIPT_NAME'].'">New backup</a>';
 				}
@@ -349,6 +331,7 @@ class awesomeDumper3000 {
 		}
 	}
 }
+/*************************************************************************************************************/
 ?>
 
 <html>
@@ -356,7 +339,7 @@ class awesomeDumper3000 {
 	<title>Database dumper</title>
 	
 	<style>
-		body { background: #444; color: #eee; }
+		body { background: #444; color: #eee; font-family: Georgia; }
 		.control { font-size: 20px; font-weight: bold; color: #f00000; text-decoration: none; }
 		.hint { font-size: 10px; }
 	</style>
